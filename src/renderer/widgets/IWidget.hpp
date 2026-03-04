@@ -51,6 +51,12 @@ class IWidget {
     void                 setHover(bool hover);
     bool                 isHovered() const;
 
+    virtual Vector2D     getSize() const {
+        return getBoundingBoxWl().size();
+    }
+
+    std::string widgetName;
+
   private:
     bool hovered = false;
 };

@@ -48,8 +48,9 @@ class CImage : public IWidget {
     CGradientValueData              color;
     Vector2D                        pos;
     Vector2D                        configPos;
+    CLayoutValueData*               configPosLayout = nullptr;
 
-    std::string                     halign, valign, path;
+    std::string                     halign, valign, path, name;
 
     bool                            firstRender = true;
 

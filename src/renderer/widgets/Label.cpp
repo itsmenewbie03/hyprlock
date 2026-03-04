@@ -70,13 +70,14 @@ void CLabel::configure(const std::unordered_map<std::string, std::any>& props, c
     shadow.configure(m_self, props, viewport);
 
     try {
-        configPos      = CLayoutValueData::fromAnyPv(props.at("position"))->getAbsolute(viewport);
-        labelPreFormat = std::any_cast<Hyprlang::STRING>(props.at("text"));
-        halign         = std::any_cast<Hyprlang::STRING>(props.at("halign"));
-        valign         = std::any_cast<Hyprlang::STRING>(props.at("valign"));
-        angle          = std::any_cast<Hyprlang::FLOAT>(props.at("rotate"));
-        angle          = angle * M_PI / 180.0;
-        onclickCommand = std::any_cast<Hyprlang::STRING>(props.at("onclick"));
+        configPosLayout = CLayoutValueData::fromAnyPv(props.at("position"));
+        configPos       = configPosLayout->getAbsolute(viewport);
+        labelPreFormat  = std::any_cast<Hyprlang::STRING>(props.at("text"));
+        halign          = std::any_cast<Hyprlang::STRING>(props.at("halign"));
+        valign          = std::any_cast<Hyprlang::STRING>(props.at("valign"));
+        angle           = std::any_cast<Hyprlang::FLOAT>(props.at("rotate"));
+        angle           = angle * M_PI / 180.0;
+        onclickCommand  = std::any_cast<Hyprlang::STRING>(props.at("onclick"));
 
         std::string textAlign  = std::any_cast<Hyprlang::STRING>(props.at("text_align"));
         std::string fontFamily = std::any_cast<Hyprlang::STRING>(props.at("font_family"));
@@ -142,7 +143,12 @@ bool CLabel::draw(const SRenderData& data) {
     shadow.draw(data);
 
     // calc pos
-    pos = posFromHVAlign(viewport, asset->m_vSize, configPos, halign, valign, angle);
+    if (configPosLayout && configPosLayout->hasDynamicExpressions()) {
+        const Vector2D dynamicPos = configPosLayout->getAbsoluteWithSize(viewport, asset->m_vSize);
+        pos                       = posFromHVAlign(viewport, asset->m_vSize, dynamicPos, halign, valign, angle);
+    } else {
+        pos = posFromHVAlign(viewport, asset->m_vSize, configPos, halign, valign, angle);
+    }
 
     CBox box = {pos.x, pos.y, asset->m_vSize.x, asset->m_vSize.y};
     box.rot  = angle;

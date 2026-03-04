@@ -95,16 +95,18 @@ void CImage::configure(const std::unordered_map<std::string, std::any>& props, c
     shadow.configure(m_self, props, viewport);
 
     try {
-        size      = std::any_cast<Hyprlang::INT>(props.at("size"));
-        rounding  = std::any_cast<Hyprlang::INT>(props.at("rounding"));
-        border    = std::any_cast<Hyprlang::INT>(props.at("border_size"));
-        color     = *CGradientValueData::fromAnyPv(props.at("border_color"));
-        configPos = CLayoutValueData::fromAnyPv(props.at("position"))->getAbsolute(viewport);
-        halign    = std::any_cast<Hyprlang::STRING>(props.at("halign"));
-        valign    = std::any_cast<Hyprlang::STRING>(props.at("valign"));
-        angle     = std::any_cast<Hyprlang::FLOAT>(props.at("rotate"));
+        size            = std::any_cast<Hyprlang::INT>(props.at("size"));
+        rounding        = std::any_cast<Hyprlang::INT>(props.at("rounding"));
+        border          = std::any_cast<Hyprlang::INT>(props.at("border_size"));
+        color           = *CGradientValueData::fromAnyPv(props.at("border_color"));
+        configPosLayout = CLayoutValueData::fromAnyPv(props.at("position"));
+        configPos       = configPosLayout->getAbsolute(viewport);
+        halign          = std::any_cast<Hyprlang::STRING>(props.at("halign"));
+        valign          = std::any_cast<Hyprlang::STRING>(props.at("valign"));
+        angle           = std::any_cast<Hyprlang::FLOAT>(props.at("rotate"));
 
         path           = std::any_cast<Hyprlang::STRING>(props.at("path"));
+        name           = std::any_cast<Hyprlang::STRING>(props.at("name"));
         reloadTime     = std::any_cast<Hyprlang::INT>(props.at("reload_time"));
         reloadCommand  = std::any_cast<Hyprlang::STRING>(props.at("reload_cmd"));
         pathCommand    = std::any_cast<Hyprlang::STRING>(props.at("path_cmd"));
@@ -219,7 +221,12 @@ bool CImage::draw(const SRenderData& data) {
 
     shadow.draw(data);
 
-    pos = posFromHVAlign(viewport, tex->m_vSize, configPos, halign, valign, angle);
+    if (configPosLayout && configPosLayout->hasDynamicExpressions()) {
+        const Vector2D dynamicPos = configPosLayout->getAbsoluteWithSize(viewport, tex->m_vSize);
+        pos                       = posFromHVAlign(viewport, tex->m_vSize, dynamicPos, halign, valign, angle);
+    } else {
+        pos = posFromHVAlign(viewport, tex->m_vSize, configPos, halign, valign, angle);
+    }
 
     texbox.x = pos.x;
     texbox.y = pos.y;

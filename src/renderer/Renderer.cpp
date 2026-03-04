@@ -1,6 +1,7 @@
 #include "Renderer.hpp"
 #include "Shaders.hpp"
 #include "Screencopy.hpp"
+#include "WidgetRegistry.hpp"
 #include "../config/ConfigManager.hpp"
 #include "../core/AnimationManager.hpp"
 #include "../core/Egl.hpp"
@@ -12,6 +13,7 @@
 #include <GLES3/gl3ext.h>
 #include <GLES2/gl2ext.h>
 #include <algorithm>
+#include <unordered_set>
 #include "widgets/PasswordInputField.hpp"
 #include "widgets/Background.hpp"
 #include "widgets/Label.hpp"
@@ -397,8 +399,95 @@ std::vector<ASP<IWidget>>& CRenderer::getOrCreateWidgetsFor(const CSessionLockSu
         });
 
         const auto POUTPUT = surf.m_outputRef.lock();
+        
+        std::unordered_map<std::string, size_t> widgetNameToIndex;
+        std::vector<std::string>                widgetNames;
+
+        for (size_t i = 0; i < CWIDGETS.size(); ++i) {
+            auto& c = CWIDGETS[i];
+            if (!c.monitor.empty() && c.monitor != POUTPUT->stringPort && !POUTPUT->stringDesc.starts_with(c.monitor) && !("desc:" + POUTPUT->stringDesc).starts_with(c.monitor))
+                continue;
+
+            std::string widgetName;
+            Debug::log(ERR, "CHECKING WIDGET type='{}' - has 'name' key: {}", c.type, c.values.contains("name"));
+            
+            // Debug: print all keys in c.values for this widget
+            std::string keys;
+            for (const auto& [key, value] : c.values) {
+                keys += key + ", ";
+            }
+            Debug::log(ERR, "  Available keys: {}", keys);
+            
+            if (c.values.contains("name")) {
+                try {
+                    widgetName = std::any_cast<Hyprlang::STRING>(c.values.at("name"));
+                    Debug::log(ERR, "READ NAME '{}' for widget type '{}'", widgetName, c.type);
+                } catch (const std::exception& e) {
+                    Debug::log(ERR, "FAILED TO CAST NAME for widget type '{}': {}", c.type, e.what());
+                    widgetName = "";
+                }
+            }
+
+            if (!widgetName.empty()) {
+                widgetNameToIndex[widgetName] = i;
+                widgetNames.push_back(widgetName);
+                Debug::log(ERR, "FOUND NAMED WIDGET: name='{}' type='{}'", widgetName, c.type);
+            }
+        }
+
+        auto resolveDependencies = [&](const std::string& widgetName, auto& resolveDepsRef) -> std::vector<std::string> {
+            std::vector<std::string> order;
+            if (widgetNameToIndex.find(widgetName) == widgetNameToIndex.end())
+                return order;
+
+            auto& config = CWIDGETS[widgetNameToIndex[widgetName]];
+            try {
+                auto* layoutData = CLayoutValueData::fromAnyPv(config.values.at("position"));
+                auto  deps       = layoutData->getWidgetDependencies();
+                for (const auto& dep : deps) {
+                    auto depOrder = resolveDepsRef(dep, resolveDepsRef);
+                    order.insert(order.end(), depOrder.begin(), depOrder.end());
+                }
+            } catch (...) {}
+
+            if (std::find(order.begin(), order.end(), widgetName) == order.end())
+                order.push_back(widgetName);
+            return order;
+        };
+
+        std::vector<std::string> sortedNames;
+        std::unordered_set<std::string> processed;
+        for (const auto& name : widgetNames) {
+            if (processed.count(name))
+                continue;
+            auto order = resolveDependencies(name, resolveDependencies);
+            for (const auto& n : order) {
+                if (!processed.count(n)) {
+                    sortedNames.push_back(n);
+                    processed.insert(n);
+                }
+            }
+        }
+
+        Debug::log(ERR, "SORTED WIDGET NAMES: count={}", sortedNames.size());
+        for (const auto& n : sortedNames) {
+            Debug::log(ERR, "  - {}", n);
+        }
+
         for (auto& c : CWIDGETS) {
             if (!c.monitor.empty() && c.monitor != POUTPUT->stringPort && !POUTPUT->stringDesc.starts_with(c.monitor) && !("desc:" + POUTPUT->stringDesc).starts_with(c.monitor))
+                continue;
+
+            std::string widgetName;
+            if (c.values.contains("name")) {
+                try {
+                    widgetName = std::any_cast<Hyprlang::STRING>(c.values.at("name"));
+                } catch (const std::exception& e) {
+                    Debug::log(ERR, "FIRST LOOP - FAILED TO CAST NAME for widget type '{}': {}", c.type, e.what());
+                }
+            }
+
+            if (!widgetName.empty() && std::find(sortedNames.begin(), sortedNames.end(), widgetName) != sortedNames.end())
                 continue;
 
             // by type
@@ -417,7 +506,40 @@ std::vector<ASP<IWidget>>& CRenderer::getOrCreateWidgetsFor(const CSessionLockSu
                 continue;
             }
 
-            widgets[surf.m_outputID].back()->configure(c.values, POUTPUT);
+            auto& widget       = widgets[surf.m_outputID].back();
+            widget->widgetName = widgetName;
+            widget->configure(c.values, POUTPUT);
+            if (!widgetName.empty()) {
+                Debug::log(ERR, "REGISTERING WIDGET: name='{}' type='{}'", widgetName, c.type);
+                g_pWidgetRegistry.registerWidget(widgetName, widget);
+            }
+        }
+
+        for (const auto& name : sortedNames) {
+            if (widgetNameToIndex.find(name) == widgetNameToIndex.end())
+                continue;
+
+            auto& c = CWIDGETS[widgetNameToIndex[name]];
+            if (c.type == "background") {
+                createWidget<CBackground>(widgets[surf.m_outputID]);
+            } else if (c.type == "input-field") {
+                createWidget<CPasswordInputField>(widgets[surf.m_outputID]);
+            } else if (c.type == "label") {
+                createWidget<CLabel>(widgets[surf.m_outputID]);
+            } else if (c.type == "shape") {
+                createWidget<CShape>(widgets[surf.m_outputID]);
+            } else if (c.type == "image") {
+                createWidget<CImage>(widgets[surf.m_outputID]);
+            } else {
+                Debug::log(ERR, "Unknown widget type: {}", c.type);
+                continue;
+            }
+
+            auto& widget       = widgets[surf.m_outputID].back();
+            widget->widgetName = name;
+            widget->configure(c.values, POUTPUT);
+            Debug::log(ERR, "REGISTERING DEPENDENT WIDGET: name='{}' type='{}'", name, c.type);
+            g_pWidgetRegistry.registerWidget(name, widget);
         }
     }
 
@@ -588,6 +710,7 @@ void CRenderer::popFb() {
 }
 
 void CRenderer::removeWidgetsFor(OUTPUTID id) {
+    g_pWidgetRegistry.clearForOutput(id);
     widgets.erase(id);
 }
 

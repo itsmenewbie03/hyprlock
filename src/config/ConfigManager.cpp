@@ -79,6 +79,9 @@ static Hyprlang::CParseResult configHandleLayoutOption(const char* v, void** dat
         return result;
     }
 
+    auto lhsOriginal = lhs;
+    auto rhsOriginal = rhs;
+
     if (lhs.ends_with("%")) {
         DATA->m_sIsRelative.x = true;
         lhs.pop_back();
@@ -89,7 +92,36 @@ static Hyprlang::CParseResult configHandleLayoutOption(const char* v, void** dat
         rhs.pop_back();
     }
 
-    DATA->m_vValues = Hyprutils::Math::Vector2D{std::stof(lhs), std::stof(rhs)};
+    bool lhsHasDynamic =
+        lhs.find("$WIDTH") != std::string::npos || lhs.find("$HEIGHT") != std::string::npos || (lhs.find('.') != std::string::npos && lhs.find('$') != std::string::npos);
+    bool rhsHasDynamic =
+        rhs.find("$WIDTH") != std::string::npos || rhs.find("$HEIGHT") != std::string::npos || (rhs.find('.') != std::string::npos && rhs.find('$') != std::string::npos);
+
+    if (lhsHasDynamic) {
+        Debug::log(ERR, "DETECTED DYNAMIC EXPRESSION in X: '{}'", lhsOriginal);
+        DATA->m_sExpressions.x = lhsOriginal;
+        DATA->m_vValues.x      = 0;
+    } else {
+        try {
+            DATA->m_vValues.x = std::stof(lhs);
+        } catch (...) {
+            result.setError(std::format("invalid number in position x: {}", lhs).c_str());
+            return result;
+        }
+    }
+
+    if (rhsHasDynamic) {
+        Debug::log(ERR, "DETECTED DYNAMIC EXPRESSION in Y: '{}'", rhsOriginal);
+        DATA->m_sExpressions.y = rhsOriginal;
+        DATA->m_vValues.y      = 0;
+    } else {
+        try {
+            DATA->m_vValues.y = std::stof(rhs);
+        } catch (...) {
+            result.setError(std::format("invalid number in position y: {}", rhs).c_str());
+            return result;
+        }
+    }
 
     return result;
 }
@@ -230,6 +262,7 @@ void CConfigManager::init() {
     m_config.addConfigValue("animations:enabled", Hyprlang::INT{1});
 
     m_config.addSpecialCategory("background", Hyprlang::SSpecialCategoryOptions{.key = nullptr, .anonymousKeyBased = true});
+    m_config.addSpecialConfigValue("background", "name", Hyprlang::STRING{""});
     m_config.addSpecialConfigValue("background", "monitor", Hyprlang::STRING{""});
     m_config.addSpecialConfigValue("background", "path", Hyprlang::STRING{""});
     m_config.addSpecialConfigValue("background", "color", Hyprlang::INT{0xFF111111});
@@ -246,6 +279,7 @@ void CConfigManager::init() {
     m_config.addSpecialConfigValue("background", "crossfade_time", Hyprlang::FLOAT{-1.0});
 
     m_config.addSpecialCategory("shape", Hyprlang::SSpecialCategoryOptions{.key = nullptr, .anonymousKeyBased = true});
+    m_config.addSpecialConfigValue("shape", "name", Hyprlang::STRING{""});
     m_config.addSpecialConfigValue("shape", "monitor", Hyprlang::STRING{""});
     m_config.addSpecialConfigValue("shape", "size", LAYOUTCONFIG("100,100"));
     m_config.addSpecialConfigValue("shape", "rounding", Hyprlang::INT{0});
@@ -262,6 +296,7 @@ void CConfigManager::init() {
     CLICKABLE("shape");
 
     m_config.addSpecialCategory("image", Hyprlang::SSpecialCategoryOptions{.key = nullptr, .anonymousKeyBased = true});
+    m_config.addSpecialConfigValue("image", "name", Hyprlang::STRING{""});
     m_config.addSpecialConfigValue("image", "monitor", Hyprlang::STRING{""});
     m_config.addSpecialConfigValue("image", "path", Hyprlang::STRING{""});
     m_config.addSpecialConfigValue("image", "path_cmd", Hyprlang::STRING{""});
@@ -280,6 +315,7 @@ void CConfigManager::init() {
     CLICKABLE("image");
 
     m_config.addSpecialCategory("input-field", Hyprlang::SSpecialCategoryOptions{.key = nullptr, .anonymousKeyBased = true});
+    m_config.addSpecialConfigValue("input-field", "name", Hyprlang::STRING{""});
     m_config.addSpecialConfigValue("input-field", "monitor", Hyprlang::STRING{""});
     m_config.addSpecialConfigValue("input-field", "size", LAYOUTCONFIG("400,90"));
     m_config.addSpecialConfigValue("input-field", "inner_color", Hyprlang::INT{0xFFDDDDDD});
@@ -313,6 +349,7 @@ void CConfigManager::init() {
     SHADOWABLE("input-field");
 
     m_config.addSpecialCategory("label", Hyprlang::SSpecialCategoryOptions{.key = nullptr, .anonymousKeyBased = true});
+    m_config.addSpecialConfigValue("label", "name", Hyprlang::STRING{""});
     m_config.addSpecialConfigValue("label", "monitor", Hyprlang::STRING{""});
     m_config.addSpecialConfigValue("label", "position", LAYOUTCONFIG("0,0"));
     m_config.addSpecialConfigValue("label", "color", Hyprlang::INT{0xFFFFFFFF});
@@ -370,11 +407,10 @@ std::vector<CConfigManager::SWidgetConfig> CConfigManager::getWidgetConfigs() {
 
 #define SHADOWABLE(name)                                                                                                                                                           \
     {"shadow_size", m_config.getSpecialConfigValue(name, "shadow_size", k.c_str())}, {"shadow_passes", m_config.getSpecialConfigValue(name, "shadow_passes", k.c_str())},          \
-        {"shadow_color", m_config.getSpecialConfigValue(name, "shadow_color", k.c_str())}, {                                                                                       \
-        "shadow_boost", m_config.getSpecialConfigValue(name, "shadow_boost", k.c_str())                                                                                            \
-    }
+        {"shadow_color", m_config.getSpecialConfigValue(name, "shadow_color", k.c_str())}, {"shadow_boost", m_config.getSpecialConfigValue(name, "shadow_boost", k.c_str())}
 
-#define CLICKABLE(name) {"onclick", m_config.getSpecialConfigValue(name, "onclick", k.c_str())}
+#define CLICKABLE(name)                                                                                                                                                            \
+    { "onclick", m_config.getSpecialConfigValue(name, "onclick", k.c_str()) }
 
     //
     auto keys = m_config.listKeysForSpecialCategory("background");
@@ -438,6 +474,7 @@ std::vector<CConfigManager::SWidgetConfig> CConfigManager::getWidgetConfigs() {
             .monitor = std::any_cast<Hyprlang::STRING>(m_config.getSpecialConfigValue("image", "monitor", k.c_str())),
             .values = {
                 {"path", m_config.getSpecialConfigValue("image", "path", k.c_str())},
+                {"name", m_config.getSpecialConfigValue("image", "name", k.c_str())},
                 {"path_cmd", m_config.getSpecialConfigValue("image", "path_cmd", k.c_str())},
                 {"size", m_config.getSpecialConfigValue("image", "size", k.c_str())},
                 {"rounding", m_config.getSpecialConfigValue("image", "rounding", k.c_str())},

@@ -4,6 +4,7 @@
 #include "IWidget.hpp"
 #include "Shadowable.hpp"
 #include "../../core/Timer.hpp"
+#include "../../config/ConfigDataValues.hpp"
 #include <hyprgraphics/resource/resources/AsyncResource.hpp>
 #include <hyprgraphics/resource/resources/TextResource.hpp>
 #include <string>
@@ -46,6 +47,7 @@ class CLabel : public IWidget {
     Vector2D                                       viewport;
     Vector2D                                       pos;
     Vector2D                                       configPos;
+    CLayoutValueData*                              configPosLayout = nullptr;
     double                                         angle;
 
     ResourceID                                     resourceID        = 0;
