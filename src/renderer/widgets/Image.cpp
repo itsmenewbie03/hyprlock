@@ -32,7 +32,18 @@ void CImage::onTimerUpdate() {
 
     const std::string OLDPATH = path;
 
-    if (!reloadCommand.empty()) {
+    if (!pathCommand.empty()) {
+        path = spawnSync(pathCommand);
+
+        if (path.ends_with('\n'))
+            path.pop_back();
+
+        if (path.starts_with("file://"))
+            path = path.substr(7);
+
+        if (path.empty())
+            return;
+    } else if (!reloadCommand.empty()) {
         path = spawnSync(reloadCommand);
 
         if (path.ends_with('\n'))
@@ -96,11 +107,22 @@ void CImage::configure(const std::unordered_map<std::string, std::any>& props, c
         path           = std::any_cast<Hyprlang::STRING>(props.at("path"));
         reloadTime     = std::any_cast<Hyprlang::INT>(props.at("reload_time"));
         reloadCommand  = std::any_cast<Hyprlang::STRING>(props.at("reload_cmd"));
+        pathCommand    = std::any_cast<Hyprlang::STRING>(props.at("path_cmd"));
         onclickCommand = std::any_cast<Hyprlang::STRING>(props.at("onclick"));
     } catch (const std::bad_any_cast& e) {
         RASSERT(false, "Failed to construct CImage: {}", e.what()); //
     } catch (const std::out_of_range& e) {
         RASSERT(false, "Missing propperty for CImage: {}", e.what()); //
+    }
+
+    if (!pathCommand.empty()) {
+        path = spawnSync(pathCommand);
+
+        if (path.ends_with('\n'))
+            path.pop_back();
+
+        if (path.starts_with("file://"))
+            path = path.substr(7);
     }
 
     resourceID = g_asyncResourceManager->requestImage(path, m_imageRevision, nullptr);

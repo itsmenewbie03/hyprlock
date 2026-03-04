@@ -264,6 +264,7 @@ void CConfigManager::init() {
     m_config.addSpecialCategory("image", Hyprlang::SSpecialCategoryOptions{.key = nullptr, .anonymousKeyBased = true});
     m_config.addSpecialConfigValue("image", "monitor", Hyprlang::STRING{""});
     m_config.addSpecialConfigValue("image", "path", Hyprlang::STRING{""});
+    m_config.addSpecialConfigValue("image", "path_cmd", Hyprlang::STRING{""});
     m_config.addSpecialConfigValue("image", "size", Hyprlang::INT{150});
     m_config.addSpecialConfigValue("image", "rounding", Hyprlang::INT{-1});
     m_config.addSpecialConfigValue("image", "border_size", Hyprlang::INT{4});
@@ -437,6 +438,7 @@ std::vector<CConfigManager::SWidgetConfig> CConfigManager::getWidgetConfigs() {
             .monitor = std::any_cast<Hyprlang::STRING>(m_config.getSpecialConfigValue("image", "monitor", k.c_str())),
             .values = {
                 {"path", m_config.getSpecialConfigValue("image", "path", k.c_str())},
+                {"path_cmd", m_config.getSpecialConfigValue("image", "path_cmd", k.c_str())},
                 {"size", m_config.getSpecialConfigValue("image", "size", k.c_str())},
                 {"rounding", m_config.getSpecialConfigValue("image", "rounding", k.c_str())},
                 {"border_size", m_config.getSpecialConfigValue("image", "border_size", k.c_str())},

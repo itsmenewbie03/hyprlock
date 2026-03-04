@@ -55,6 +55,7 @@ class CImage : public IWidget {
 
     int                             reloadTime;
     std::string                     reloadCommand;
+    std::string                     pathCommand;
     std::string                     onclickCommand;
 
     std::filesystem::file_time_type modificationTime;
