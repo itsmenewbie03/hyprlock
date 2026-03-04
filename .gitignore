@@ -12,3 +12,5 @@ protocols/*.cpp
 protocols/*.hpp
 *.kdev4
 .gdb_history
+
+debug.txt

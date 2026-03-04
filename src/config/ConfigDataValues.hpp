@@ -120,15 +120,12 @@ class CLayoutValueData : public ICustomConfigValueData {
 
         try {
             return evaluateSimpleExpression(evaluated, viewportDim);
-        } catch (...) {
-            Debug::log(ERR, "Failed to evaluate expression: {}", expr);
-            return isRelative ? (baseValue / 100) * viewportDim : baseValue;
-        }
+        } catch (...) { return isRelative ? (baseValue / 100) * viewportDim : baseValue; }
     }
 
     static std::string resolveWidgetReferences(const std::string& expr);
 
-    static double evaluateSimpleExpression(const std::string& expr, double viewportDim) {
+    static double      evaluateSimpleExpression(const std::string& expr, double viewportDim) {
         std::string trimmed = expr;
         trimmed.erase(0, trimmed.find_first_not_of(" \t"));
         trimmed.erase(trimmed.find_last_not_of(" \t") + 1);
@@ -139,14 +136,14 @@ class CLayoutValueData : public ICustomConfigValueData {
         }
 
         if (trimmed.find('?') != std::string::npos && trimmed.find(':') != std::string::npos) {
-            size_t qPos = trimmed.find('?');
-            size_t cPos = trimmed.find(':', qPos);
-            
+            size_t      qPos = trimmed.find('?');
+            size_t      cPos = trimmed.find(':', qPos);
+
             std::string condition = trimmed.substr(0, qPos);
             std::string trueVal   = trimmed.substr(qPos + 1, cPos - qPos - 1);
             std::string falseVal  = trimmed.substr(cPos + 1);
-            
-            bool condResult = evaluateCondition(condition);
+
+            bool        condResult = evaluateCondition(condition);
             return evaluateSimpleExpression(condResult ? trueVal : falseVal, viewportDim);
         }
 
@@ -201,12 +198,8 @@ class CLayoutValueData : public ICustomConfigValueData {
         trimmed.erase(trimmed.find_last_not_of(" \t") + 1);
 
         const std::vector<std::pair<std::string, std::function<bool(double, double)>>> ops = {
-            {">=", [](double a, double b) { return a >= b; }},
-            {"<=", [](double a, double b) { return a <= b; }},
-            {"==", [](double a, double b) { return a == b; }},
-            {"!=", [](double a, double b) { return a != b; }},
-            {">", [](double a, double b) { return a > b; }},
-            {"<", [](double a, double b) { return a < b; }},
+            {">=", [](double a, double b) { return a >= b; }}, {"<=", [](double a, double b) { return a <= b; }}, {"==", [](double a, double b) { return a == b; }},
+            {"!=", [](double a, double b) { return a != b; }}, {">", [](double a, double b) { return a > b; }},   {"<", [](double a, double b) { return a < b; }},
         };
 
         for (const auto& [opStr, opFunc] : ops) {
@@ -219,12 +212,10 @@ class CLayoutValueData : public ICustomConfigValueData {
                 } catch (...) { continue; }
             }
         }
-        
+
         try {
             return std::stod(trimmed) != 0;
-        } catch (...) {
-            return false;
-        }
+        } catch (...) { return false; }
     }
 };
 

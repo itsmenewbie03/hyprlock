@@ -30,11 +30,8 @@ std::string CLayoutValueData::resolveWidgetReferences(const std::string& expr) {
         property.erase(0, property.find_first_not_of(" \t"));
         property.erase(property.find_last_not_of(" \t") + 1);
 
-        Debug::log(ERR, "ATTEMPTING TO RESOLVE: Widget='{}' Property='{}' from expression '{}'", widgetName, property, expr);
-
         auto widget = g_pWidgetRegistry.getWidget(widgetName);
         if (!widget) {
-            Debug::log(ERR, "WIDGET '{}' NOT FOUND IN REGISTRY for expression '{}'", widgetName, expr);
             pos = endPos;
             continue;
         }
@@ -45,14 +42,10 @@ std::string CLayoutValueData::resolveWidgetReferences(const std::string& expr) {
         } else if (property == "HEIGHT" || property == "height") {
             value = widget->getSize().y;
         } else {
-            Debug::log(ERR, "UNKNOWN PROPERTY '{}' for widget '{}'", property, widgetName);
             pos = endPos;
             continue;
         }
 
-        Debug::log(ERR, "RESOLVED ${}.{} = {} in expression '{}' -> result will be '{}'", widgetName, property, value, expr, 
-                   result.substr(0, pos) + std::to_string(value) + result.substr(endPos));
-        
         result.replace(pos, endPos - pos, std::to_string(value));
         pos += std::to_string(value).length();
     }

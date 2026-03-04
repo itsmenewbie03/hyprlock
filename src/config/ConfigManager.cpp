@@ -98,7 +98,6 @@ static Hyprlang::CParseResult configHandleLayoutOption(const char* v, void** dat
         rhs.find("$WIDTH") != std::string::npos || rhs.find("$HEIGHT") != std::string::npos || (rhs.find('.') != std::string::npos && rhs.find('$') != std::string::npos);
 
     if (lhsHasDynamic) {
-        Debug::log(ERR, "DETECTED DYNAMIC EXPRESSION in X: '{}'", lhsOriginal);
         DATA->m_sExpressions.x = lhsOriginal;
         DATA->m_vValues.x      = 0;
     } else {
@@ -111,7 +110,6 @@ static Hyprlang::CParseResult configHandleLayoutOption(const char* v, void** dat
     }
 
     if (rhsHasDynamic) {
-        Debug::log(ERR, "DETECTED DYNAMIC EXPRESSION in Y: '{}'", rhsOriginal);
         DATA->m_sExpressions.y = rhsOriginal;
         DATA->m_vValues.y      = 0;
     } else {
